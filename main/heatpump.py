@@ -22,7 +22,8 @@ topic_sub_fanmode = b"varmepumpe/fanmode/set"
 topic_sub_swingmode = b"varmepumpe/swingmode/set"
 topic_sub_mode =  b"varmepumpe/mode/set"
 topic_sub_doinit = b"varmepumpe/doinit"
-topics = [topic_sub_setp, topic_sub_state, topic_sub_doinit, topic_sub_fanmode, topic_sub_mode, topic_sub_swingmode]
+topic_sub_restart = b"varmepumpe/restart"
+topics = [topic_sub_setp, topic_sub_state, topic_sub_doinit, topic_sub_fanmode, topic_sub_mode, topic_sub_swingmode, topic_sub_restart]
 
 def int_to_signed(intval):
     if intval > 127:
@@ -42,6 +43,14 @@ def sub_cb(topic, msg):
         except Exception as e:
             hpfuncs.logprint(e)
             runwrite = False
+################################################ 
+#restart
+    if topic == topic_sub_restart:
+        try:
+            machine.reset()
+        except Exception as e:
+            hpfuncs.logprint(e)
+            runwrite = False            
 ################################################        
 # state
     elif topic == topic_sub_state:
