@@ -1,30 +1,27 @@
+import hpfuncs
+
 from machine import UART
 global uart
 uart = UART(1, 9600)
-uart.init(9600,bits = 8,parity = 0,stop = 1,rx = 32,tx = 33,)
+uart.init(9600,bits = 8,parity = 0,stop = 1,rx = 32,tx = 33,timeout = 10, timeout_char=50)
 
-from umqtt.simple import MQTTClient
+from umqtt.robust import MQTTClient
 import uasyncio as asyncio
 import time
 from time import sleep
 import machine
-import hpfuncs
 
-
-
-# exec(open('./nyser.py').read(),globals())
 topic_prefix = "varmepumpe"
-
 mqtt_server = '192.168.2.30'
 client_id ='hpesp32-1'
-topic_sub_setp = b"varmepumpe/setpoint"
-topic_sub_state = b"varmepumpe/controlstate"
+
+topic_sub_setp = b"varmepumpe/setpoint/set"
+topic_sub_state = b"varmepumpe/state/set"
+topic_sub_fanmode = b"varmepumpe/fanmode/set"
+topic_sub_swingmode = b"varmepumpe/swingmode/set"
+topic_sub_mode =  b"varmepumpe/mode/set"
 topic_sub_doinit = b"varmepumpe/doinit"
-topics = [topic_sub_setp, topic_sub_state, topic_sub_doinit]
-
-
-
-
+topics = [topic_sub_setp, topic_sub_state, topic_sub_doinit, topic_sub_fanmode, topic_sub_mode, topic_sub_swingmode]
 
 def int_to_signed(intval):
     if intval > 127:
@@ -32,42 +29,90 @@ def int_to_signed(intval):
     else:
         return intval
 
-
-
-
-
-
 #mqtt stuff
 def sub_cb(topic, msg):
     runwrite = True
-
-    print(topic, msg)
+    hpfuncs.logprint(str(topic) + " -- " + str(msg))
+################################################ 
+#setpoint
     if topic == topic_sub_setp:
         try:
-            values = hpfuncs.setpointVal(msg)
+            values = hpfuncs.setpointVal(int(float(msg)))
         except Exception as e:
+            hpfuncs.logprint(e)
             runwrite = False
-            
+################################################        
+# state
     elif topic == topic_sub_state:
         try:
             values = hpfuncs.stateControl(msg)
+            if values == False:
+                runwrite = False
         except Exception as e:
+            hpfuncs.logprint(e)
             runwrite = False
+################################################        
+# swingstate
+    elif topic == topic_sub_swingmode:
+        try:
+            values = hpfuncs.swingControl(msg)
+            if values == False:
+                runwrite = False
+        except Exception as e:
+            hpfuncs.logprint(e)
+            runwrite = False
+################################################        
+# mode
+    elif topic == topic_sub_mode:
+        try:
+            values = hpfuncs.modeControl(msg)
+            if values == False:
+                runwrite = False
+        except Exception as e:
+            hpfuncs.logprint(e)
+            runwrite = False
+################################################
+# fanmode
+    elif topic == topic_sub_fanmode:
+        try:
+            values = hpfuncs.fanControl(msg)
+            if values == False:
+                runwrite = False
+        except Exception as e:
+            hpfuncs.logprint(e)
+            runwrite = False
+################################################
+# do init
     elif topic == topic_sub_doinit:
         myvals = hpfuncs.queryall()
-        print("initial read")
+        hpfuncs.logprint("initial read")
         for i in myvals:
             uart.write(bytearray(i))
             sleep(0.2)
-        
-        print("initial read done")
+        hpfuncs.logprint("initial read done")
         runwrite = False
+################################################ 
+    if runwrite == True and values != False:
+        #print(values)
+        for i in values:
+            hpfuncs.logprint("writing: " + str(i))
+            uart.write(bytearray(i))
+            sleep(0.2)
 
-    if runwrite == True:
-        print(values)
-        uart.write(values)
         
-
+def chunkifyarray(vals):
+    val_length = len(vals)
+    start = 0
+    rest_size = val_length
+    myresult = []
+    while rest_size > 14:
+        lengde= int(vals[start+6])
+        chunk_size = lengde + 8
+        chunk_end = start + int(vals[start+6]) + 8
+        myresult.append(vals[start:chunk_end])
+        start = (start + chunk_size) 
+        rest_size = rest_size - chunk_size
+    return myresult
 
 def connect_and_subscribe():
     try:
@@ -75,24 +120,25 @@ def connect_and_subscribe():
         client = MQTTClient(client_id, mqtt_server)
         client.set_callback(sub_cb)
         client.connect()
-        client.subscribe(topic_sub_setp)
-        client.subscribe(topic_sub_state)
-        client.subscribe(topic_sub_doinit)
-        
-        print('Connected to %s MQTT broker, subscribed to %s topic' % (mqtt_server, str(topics)))
+        for i in topics:
+            client.subscribe(i)
+            hpfuncs.logprint("Subscribing to: " + str(i))
+        hpfuncs.logprint("Connected to MQTT Server : " + str(mqtt_server))
         return client
     except Exception as e:
-        print("sender: ", e)
+        hpcunfs.logprint(e)
+        restart_and_reconnect()
+       
 
 def restart_and_reconnect():
-    print('Failed to connect to MQTT broker. Reconnecting...')
+    hpfuncs.logprint('Failed to connect to MQTT broker. Reconnecting...')
     time.sleep(10)
-    #machine.reset()
+    machine.reset()
 
 try:
     client = connect_and_subscribe()
 except Exception as e:
-    print("start av connect_and_subscribe: ", e)
+    hpfuncs.logprint(e)
     restart_and_reconnect()
 
 
@@ -102,14 +148,14 @@ async def sender():
             client.check_msg()
             await asyncio.sleep(1)
     except Exception as e:
-        print("sender: ",e )        
+        hpfuncs.logprint(e )        
 
 async def firstrun():
     firstrun = False
-    await asyncio.sleep(5)
+    await asyncio.sleep(10)
     if firstrun == False:
         client.publish('varmepumpe/doinit', "firstrun")
-        print("running firstrun")
+        hpfuncs.logprint("init firstrun")
         firstrun = True
 
 
@@ -118,53 +164,51 @@ async def receiver():
     sreader = asyncio.StreamReader(uart)
     try:
         while True:
-            data = await sreader.read(17)
-            if data is not None:
-                #print(data)
-                formdata = ""
-                for i in data:
-                    formdata = formdata + str(int(i)) + " "
-                print(formdata)
-                print(len(data))
+            serdata = await sreader.read(2048)
+            if serdata is not None:
+                readable = list()
+                for i in serdata:
+                    readable.append(str(int(i)))
                 
-                if len(data) > 12:
+                hpfuncs.logprint("length of data: " + str(len(readable)))
+                
+                chunks = chunkifyarray(readable)
+
+                for data in chunks:
+                    hpfuncs.logprint(data)
                     client.publish('varmepumpe/debug/fullstring', str(data))
-                    #client.publish('varmepumpe/debug/nummer12', str(data[12]))
                     if len(data) == 17:
                         if(str(data[14]) == "187"):
                             roomtemp = int_to_signed(int(data[15]))
-                            client.publish('varmepumpe/roomtemp', str(roomtemp), retain=True, qos=1)
+                            client.publish('varmepumpe/roomtemp', str(roomtemp), qos=1)
                         if(str(data[14]) == "179"):
                             setpoint = int(data[15])
-                            client.publish('varmepumpe/setpoint', str(setpoint), retain=True, qos=1)
+                            client.publish('varmepumpe/setpoint/state', str(setpoint), qos=1)
                         if(str(data[14]) == "128"):
-                            onoff = int(data[15])
-                            client.publish('varmepumpe/onoff', str(onoff), retain=True, qos=1)
+                            state = hpfuncs.inttostate[int(data[15])]
+                            client.publish('varmepumpe/state/state', str(state), qos=1)
                         if(str(data[14]) == "160"):
-                            fanmode = int(data[15])
-                            client.publish('varmepumpe/fanmode', str(fanmode), retain=True, qos=1)
+                            fanmode = hpfuncs.inttofanmode[int(data[15])]
+                            client.publish('varmepumpe/fanmode/state', str(fanmode), qos=1)
                         if(str(data[14]) == "163"):
-                            swingmode = int(data[15])
-                            client.publish('varmepumpe/swingmode', str(swingmode), retain=True, qos=1)
+                            swingmode = hpfuncs.inttoswing[int(data[15])]
+                            client.publish('varmepumpe/swingmode/state', str(swingmode), qos=1)
                         if(str(data[14]) == "176"):
-                            mode = int(data[15])
-                            client.publish('varmepumpe/mode', str(mode), retain=True, qos=1) 
+                            mode = hpfuncs.inttomode[int(data[15])]
+                            client.publish('varmepumpe/mode/state', str(mode), qos=1) 
                         if(str(data[14]) == "190"):
-                            print("her er utetemp: ")
-                            print(str(data[15]))
                             outdoortemp = int_to_signed(int(data[15]))
-                            client.publish('varmepumpe/outdoortemp', str(outdoortemp), retain=True, qos=1)
+                            client.publish('varmepumpe/outdoortemp', str(outdoortemp), qos=1)
                     elif len(data) == 15:
                         if(str(data[12]) == "190"):
                             outdoortemp = int_to_signed(int(data[13]))
-                            client.publish('varmepumpe/outdoortemp', str(outdoortemp), retain=True, qos=1)
+                            client.publish('varmepumpe/outdoortemp', str(outdoortemp), qos=1)
                         elif(str(data[12]) == "187"):
                             roomtemp = int_to_signed(int(data[13]))
-                            client.publish('varmepumpe/roomtemp', str(roomtemp), retain=True, qos=1)        
+                            client.publish('varmepumpe/roomtemp', str(roomtemp), qos=1)        
     except Exception as e:
-        print("reciever: " , e)
-        restart_and_reconnect()
-
+        hpfuncs.logprint(e)
+        #restart_and_reconnect()
 
 loop = asyncio.get_event_loop()
 loop.create_task(receiver())

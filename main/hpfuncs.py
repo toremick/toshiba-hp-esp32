@@ -1,33 +1,97 @@
 from time import sleep
+from machine import RTC
+import ntptime
+ntptime.settime()
+
+modetoint = {"auto":65, "cool":66, "heat":67, "dry":68, "fan_only":69}
+inttomode = dict(map(reversed, modetoint.items()))
+
+fanmodetoint = {"quiet":49, "lvl_1": 50, "lvl_2":51, "lvl_3":52, "lvl_4":53, "lvl_5":54, "auto":65} 
+inttofanmode = dict(map(reversed, fanmodetoint.items()))
+
+swingtoint = {"off": 49, "on":65}
+inttoswing = dict(map(reversed, swingtoint.items()))
+
+statetoint = {"ON":48, "OFF":49}
+inttostate = dict(map(reversed, statetoint.items()))
+
+
+def logprint(msg):
+    rtc = RTC()
+    t = rtc.datetime()
+    #(2020, 4, 22, 2, 8, 43, 38, 88387)
+    # yyyy, m, dd, ?, h, mm, ss, ms
+    timestamp = str(t[2]) + "-" + str(t[1]) + "-" + str(t[0]) + " " + str(t[4]) + ":" + str(t[5]) + ":" + str(t[6]) + "." + str(t[7])
+    result = str(timestamp) + " -> " + str(msg)
+    print(result)
+ 
+
+
+def swingControl(msg):
+    function_code = 163
+    message = msg.decode("utf-8")
+    try:
+        function_value = swingtoint[message]
+        control_code = 271 - int(function_value)
+        mylist = (2,0,3,16,0,0,7,1,48,1,0,2,function_code,function_value,control_code)
+        getlist = (2,0,3,16,0,0,6,1,48,1,0,1,function_code,17)
+        myvalues = (mylist, getlist)
+    except Exception as e:
+        myvalues = False
+    return myvalues
+
+def modeControl(msg):
+    function_code = 176
+    message = msg.decode("utf-8")
+    try:
+        function_value = modetoint[message]
+        control_code = 258 - int(function_value)
+        mylist = (2,0,3,16,0,0,7,1,48,1,0,2,function_code,function_value,control_code)
+        getlist = (2,0,3,16,0,0,6,1,48,1,0,1,function_code,4)
+        myvalues = (mylist, getlist)
+    except Exception as e:
+        myvalues = False
+    return myvalues
+
+def fanControl(msg):
+    function_code = 160
+    message = msg.decode("utf-8")
+    try:
+        function_value = fanmodetoint[message]
+        control_code = 274 - int(function_value)
+        mylist = (2,0,3,16,0,0,7,1,48,1,0,2,function_code,function_value,control_code)
+        getlist = (2,0,3,16,0,0,6,1,48,1,0,1,function_code,20)
+        myvalues = (mylist, getlist)
+    except Exception as e:
+        myvalues = False
+    return myvalues
+
+
+
 def stateControl(msg):
     function_code = 128
     message = msg.decode("utf-8")
-    if message == "on":
-        function_value = 48
-        control_code = 2
-    elif message == "off":
-        function_value = 49
-        control_code = 1
-    mylist = (2,0,3,16,0,0,7,1,48,1,0,2,function_code,function_value,control_code)
-    myvalues = bytearray(mylist)
+    try:
+        function_value = statetoint[message]
+        control_code = 50 - int(function_value)
+        mylist = (2,0,3,16,0,0,7,1,48,1,0,2,function_code,function_value,control_code)
+        getlist = (2,0,3,16,0,0,6,1,48,1,0,1,function_code,52)
+        myvalues = (mylist, getlist)
+    except Exception as e:
+        myvalues = False
     return myvalues
 
 def setpointVal(msg):
     function_code = 179
-    function_value = int(msg)
-    control_code = 255 -int(msg)
-    mylist = (2,0,3,16,0,0,7,1,48,1,0,2,function_code,function_value,control_code)
-    myvalues = bytearray(mylist)
+    try:
+        function_value = int(msg)
+        control_code = 255 -int(msg)
+        mylist = (2,0,3,16,0,0,7,1,48,1,0,2,function_code,function_value,control_code)
+        getlist = (2,0,3,16,0,0,6,1,48,1,0,1,function_code,1)
+        myvalues = (mylist, getlist)
+    except Exception as e:
+        myvalues = False
     return myvalues
-
-
-def getsetpoint():
-    function_code = 179
-    function_value = 1
-    mylist = (2,0,3,16,0,0,6,1,0,1,0,1,function_code,function_value)
-    myvalues = bytearray(mylist)
-    return myvalues
-
 
      
 def queryall():
