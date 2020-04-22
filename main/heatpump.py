@@ -1,11 +1,12 @@
-import hpfuncs
+from main import hpfuncs
+#import hpfuncs
 
 from machine import UART
 global uart
 uart = UART(1, 9600)
 uart.init(9600,bits = 8,parity = 0,stop = 1,rx = 32,tx = 33,timeout = 10, timeout_char=50)
 
-from umqtt.robust import MQTTClient
+from main.robust import MQTTClient
 import uasyncio as asyncio
 import time
 from time import sleep
