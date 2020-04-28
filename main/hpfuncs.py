@@ -1,7 +1,10 @@
 from time import sleep
 from machine import RTC
 import ntptime
-ntptime.settime()
+try:
+    ntptime.settime()
+except Exception as e:
+    print(e)
 
 modetoint = {"auto":65, "cool":66, "heat":67, "dry":68, "fan_only":69}
 inttomode = dict(map(reversed, modetoint.items()))
@@ -110,4 +113,5 @@ def queryall():
      bootlist.append((2,0,3,16,0,0,6,1,48,1,0,1,144,36))
      bootlist.append((2,0,3,16,0,0,6,1,48,1,0,1,148,32))
      return bootlist    
+
 
