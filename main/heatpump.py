@@ -11,6 +11,8 @@ import uasyncio as asyncio
 import time
 from time import sleep
 import machine
+from machine import WDT
+wdt = WDT(timeout=10000)
 
 topic_prefix = "varmepumpe"
 mqtt_server = '192.168.2.30'
@@ -156,6 +158,7 @@ async def sender():
     try:
         while True:
             client.check_msg()
+            wdt.feed()
             await asyncio.sleep(1)
     except Exception as e:
         hpfuncs.logprint(e )        
@@ -225,3 +228,4 @@ loop.create_task(receiver())
 loop.create_task(sender())
 loop.create_task(firstrun())
 loop.run_forever()
+
