@@ -18,6 +18,14 @@ inttoswing = dict(map(reversed, swingtoint.items()))
 statetoint = {"ON":48, "OFF":49}
 inttostate = dict(map(reversed, statetoint.items()))
 
+def checksum(msg,function):
+    numb = 434 - msg - function
+    if numb > 256:
+        retval = numb - 256
+    else:
+        retval = numb
+    return retval
+
 
 def logprint(msg):
     rtc = RTC()
@@ -33,9 +41,10 @@ def logprint(msg):
 def swingControl(msg):
     function_code = 163
     message = msg.decode("utf-8")
+    
     try:
         function_value = swingtoint[message]
-        control_code = 271 - int(function_value)
+        control_code = checksum(function_value,function_code)
         mylist = (2,0,3,16,0,0,7,1,48,1,0,2,function_code,function_value,control_code)
         getlist = (2,0,3,16,0,0,6,1,48,1,0,1,function_code,17)
         myvalues = (mylist, getlist)
@@ -48,7 +57,7 @@ def modeControl(msg):
     message = msg.decode("utf-8")
     try:
         function_value = modetoint[message]
-        control_code = 258 - int(function_value)
+        control_code = checksum(function_value,function_code)
         mylist = (2,0,3,16,0,0,7,1,48,1,0,2,function_code,function_value,control_code)
         getlist = (2,0,3,16,0,0,6,1,48,1,0,1,function_code,4)
         myvalues = (mylist, getlist)
@@ -61,7 +70,7 @@ def fanControl(msg):
     message = msg.decode("utf-8")
     try:
         function_value = fanmodetoint[message]
-        control_code = 274 - int(function_value)
+        control_code = checksum(function_value,function_code)
         mylist = (2,0,3,16,0,0,7,1,48,1,0,2,function_code,function_value,control_code)
         getlist = (2,0,3,16,0,0,6,1,48,1,0,1,function_code,20)
         myvalues = (mylist, getlist)
@@ -76,7 +85,7 @@ def stateControl(msg):
     message = msg.decode("utf-8")
     try:
         function_value = statetoint[message]
-        control_code = 50 - int(function_value)
+        control_code = checksum(function_value,function_code)
         mylist = (2,0,3,16,0,0,7,1,48,1,0,2,function_code,function_value,control_code)
         getlist = (2,0,3,16,0,0,6,1,48,1,0,1,function_code,52)
         myvalues = (mylist, getlist)
@@ -88,7 +97,7 @@ def setpointVal(msg):
     function_code = 179
     try:
         function_value = int(msg)
-        control_code = 255 -int(msg)
+        control_code = checksum(function_value,function_code)
         mylist = (2,0,3,16,0,0,7,1,48,1,0,2,function_code,function_value,control_code)
         getlist = (2,0,3,16,0,0,6,1,48,1,0,1,function_code,1)
         myvalues = (mylist, getlist)
@@ -113,5 +122,6 @@ def queryall():
      bootlist.append((2,0,3,16,0,0,6,1,48,1,0,1,144,36))
      bootlist.append((2,0,3,16,0,0,6,1,48,1,0,1,148,32))
      return bootlist    
+
 
 
