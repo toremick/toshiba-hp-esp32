@@ -6,13 +6,20 @@ global uart
 uart = UART(1, 9600)
 uart.init(9600,bits = 8,parity = 0,stop = 1,rx = 32,tx = 33,timeout = 10, timeout_char=50)
 
-from main.robust import MQTTClient
+
+#from main.robust import MQTTClient
 import uasyncio as asyncio
+#from sys import platform
+from main.mqtt_as import MQTTClient
+from config import config
 import time
 from time import sleep
 import machine
-from machine import WDT
-wdt = WDT(timeout=10000)
+#from machine import WDT
+#wdt = WDT(timeout=10000)
+#SERVER = '192.168.0.10' 
+
+
 
 topic_prefix = "varmepumpe"
 mqtt_server = '192.168.2.30'
@@ -34,7 +41,7 @@ def int_to_signed(intval):
         return intval
 
 #mqtt stuff
-def sub_cb(topic, msg):
+def sub_cb(topic, msg, retained):
     runwrite = True
     hpfuncs.logprint(str(topic) + " -- " + str(msg))
 ################################################ 
@@ -126,53 +133,62 @@ def chunkifyarray(vals):
         rest_size = rest_size - chunk_size
     return myresult
 
-def connect_and_subscribe():
-    try:
-        global client_id, mqtt_server, topic_sub
-        client = MQTTClient(client_id, mqtt_server)
-        client.set_callback(sub_cb)
-        client.connect()
-        for i in topics:
-            client.subscribe(i)
-            hpfuncs.logprint("Subscribing to: " + str(i))
-        hpfuncs.logprint("Connected to MQTT Server : " + str(mqtt_server))
-        return client
-    except Exception as e:
-        hpcunfs.logprint(e)
-        restart_and_reconnect()
+
+
+async def conn_han(client):
+    for i in topics:
+        await client.subscribe(i,1)
+        
+    
+
+# async def connect_and_subscribe():
+#     try:
+#         global client_id, mqtt_server, topic_sub
+#         client = MQTTClient(client_id, mqtt_server)
+#         client.set_callback(sub_cb)
+#         await client.connect()
+#         for i in topics:
+#             await client.subscribe(i)
+#             hpfuncs.logprint("Subscribing to: " + str(i))
+#         hpfuncs.logprint("Connected to MQTT Server : " + str(mqtt_server))
+#         return client
+#     except Exception as e:
+#         hpcunfs.logprint(e)
+#         restart_and_reconnect()
        
 
-def restart_and_reconnect():
-    hpfuncs.logprint('Failed to connect to MQTT broker. Reconnecting...')
-    time.sleep(10)
-    machine.reset()
+# def restart_and_reconnect():
+#     hpfuncs.logprint('Failed to connect to MQTT broker. Reconnecting...')
+#     time.sleep(10)
+#     machine.reset()
+# 
+# try:
+#     client = connect_and_subscribe()
+# except Exception as e:
+#     hpfuncs.logprint(e)
+#     restart_and_reconnect()
 
-try:
-    client = connect_and_subscribe()
-except Exception as e:
-    hpfuncs.logprint(e)
-    restart_and_reconnect()
 
+# async def sender(client):
+#     try:
+#         while True:
+#             await client.check_msg()
+#             #wdt.feed()
+#             #hpfuncs.logprint("feeding the monster")
+#             await asyncio.sleep(1)
+#     except Exception as e:
+#         hpfuncs.logprint(e )        
 
-async def sender():
-    try:
-        while True:
-            client.check_msg()
-            wdt.feed()
-            await asyncio.sleep(1)
-    except Exception as e:
-        hpfuncs.logprint(e )        
-
-async def firstrun():
+async def firstrun(client):
     firstrun = False
     await asyncio.sleep(10)
     if firstrun == False:
-        client.publish('varmepumpe/doinit', "firstrun")
+        await client.publish('varmepumpe/doinit', "firstrun")
         hpfuncs.logprint("init firstrun")
         firstrun = True
 
 
-async def receiver():
+async def receiver(client):
     
     sreader = asyncio.StreamReader(uart)
     try:
@@ -193,39 +209,51 @@ async def receiver():
                     if len(data) == 17:
                         if(str(data[14]) == "187"):
                             roomtemp = int_to_signed(int(data[15]))
-                            client.publish('varmepumpe/roomtemp', str(roomtemp), qos=1)
+                            await client.publish('varmepumpe/roomtemp', str(roomtemp), qos=1)
                         if(str(data[14]) == "179"):
                             setpoint = int(data[15])
-                            client.publish('varmepumpe/setpoint/state', str(setpoint), qos=1)
+                            await client.publish('varmepumpe/setpoint/state', str(setpoint), qos=1)
                         if(str(data[14]) == "128"):
                             state = hpfuncs.inttostate[int(data[15])]
-                            client.publish('varmepumpe/state/state', str(state), qos=1)
+                            await client.publish('varmepumpe/state/state', str(state), qos=1)
                         if(str(data[14]) == "160"):
                             fanmode = hpfuncs.inttofanmode[int(data[15])]
-                            client.publish('varmepumpe/fanmode/state', str(fanmode), qos=1)
+                            await client.publish('varmepumpe/fanmode/state', str(fanmode), qos=1)
                         if(str(data[14]) == "163"):
                             swingmode = hpfuncs.inttoswing[int(data[15])]
-                            client.publish('varmepumpe/swingmode/state', str(swingmode), qos=1)
+                            await client.publish('varmepumpe/swingmode/state', str(swingmode), qos=1)
                         if(str(data[14]) == "176"):
                             mode = hpfuncs.inttomode[int(data[15])]
-                            client.publish('varmepumpe/mode/state', str(mode), qos=1) 
+                            await client.publish('varmepumpe/mode/state', str(mode), qos=1) 
                         if(str(data[14]) == "190"):
                             outdoortemp = int_to_signed(int(data[15]))
-                            client.publish('varmepumpe/outdoortemp', str(outdoortemp), qos=1)
+                            await client.publish('varmepumpe/outdoortemp', str(outdoortemp), qos=1)
                     elif len(data) == 15:
                         if(str(data[12]) == "190"):
                             outdoortemp = int_to_signed(int(data[13]))
-                            client.publish('varmepumpe/outdoortemp', str(outdoortemp), qos=1)
+                            await client.publish('varmepumpe/outdoortemp', str(outdoortemp), qos=1)
                         elif(str(data[12]) == "187"):
                             roomtemp = int_to_signed(int(data[13]))
-                            client.publish('varmepumpe/roomtemp', str(roomtemp), qos=1)        
+                            await client.publish('varmepumpe/roomtemp', str(roomtemp), qos=1)        
     except Exception as e:
         hpfuncs.logprint(e)
         #restart_and_reconnect()
 
+async def mainloop(client):
+    await client.connect()
+
+config['subs_cb'] = sub_cb
+config['connect_coro'] = conn_han
+#config['server'] = SERVER
+MQTTClient.DEBUG = True
+client = MQTTClient(config)
+
+
 loop = asyncio.get_event_loop()
-loop.create_task(receiver())
-loop.create_task(sender())
-loop.create_task(firstrun())
+loop.create_task(mainloop(client))
+loop.create_task(receiver(client))
+#
+loop.create_task(firstrun(client))
 loop.run_forever()
+
 
