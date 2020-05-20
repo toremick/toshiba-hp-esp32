@@ -1,29 +1,20 @@
 from main import hpfuncs
-#import hpfuncs
-
 from machine import UART
 global uart
 uart = UART(1, 9600)
 uart.init(9600,bits = 8,parity = 0,stop = 1,rx = 32,tx = 33,timeout = 10, timeout_char=50)
-
-
-#from main.robust import MQTTClient
 import uasyncio as asyncio
-#from sys import platform
 from main.mqtt_as import MQTTClient
 from config import config
 import time
 from time import sleep
 import machine
-#from machine import WDT
-#wdt = WDT(timeout=10000)
-#SERVER = '192.168.0.10' 
 
 
 
-topic_prefix = "varmepumpe"
-mqtt_server = '192.168.2.30'
-client_id ='hpesp32-1'
+#topic_prefix = "varmepumpe"
+#mqtt_server = '192.168.2.30'
+#client_id ='hpesp32-1'
 
 topic_sub_setp = b"varmepumpe/setpoint/set"
 topic_sub_state = b"varmepumpe/state/set"
@@ -134,51 +125,12 @@ def chunkifyarray(vals):
     return myresult
 
 
-
+# subscribe to topics
 async def conn_han(client):
     for i in topics:
         await client.subscribe(i,1)
         
-    
-
-# async def connect_and_subscribe():
-#     try:
-#         global client_id, mqtt_server, topic_sub
-#         client = MQTTClient(client_id, mqtt_server)
-#         client.set_callback(sub_cb)
-#         await client.connect()
-#         for i in topics:
-#             await client.subscribe(i)
-#             hpfuncs.logprint("Subscribing to: " + str(i))
-#         hpfuncs.logprint("Connected to MQTT Server : " + str(mqtt_server))
-#         return client
-#     except Exception as e:
-#         hpcunfs.logprint(e)
-#         restart_and_reconnect()
-       
-
-# def restart_and_reconnect():
-#     hpfuncs.logprint('Failed to connect to MQTT broker. Reconnecting...')
-#     time.sleep(10)
-#     machine.reset()
-# 
-# try:
-#     client = connect_and_subscribe()
-# except Exception as e:
-#     hpfuncs.logprint(e)
-#     restart_and_reconnect()
-
-
-# async def sender(client):
-#     try:
-#         while True:
-#             await client.check_msg()
-#             #wdt.feed()
-#             #hpfuncs.logprint("feeding the monster")
-#             await asyncio.sleep(1)
-#     except Exception as e:
-#         hpfuncs.logprint(e )        
-
+# first run to collect values
 async def firstrun(client):
     firstrun = False
     await asyncio.sleep(10)
@@ -198,11 +150,8 @@ async def receiver(client):
                 readable = list()
                 for i in serdata:
                     readable.append(str(int(i)))
-                
                 hpfuncs.logprint("length of data: " + str(len(readable)))
-                
                 chunks = chunkifyarray(readable)
-
                 for data in chunks:
                     hpfuncs.logprint(data)
                     client.publish('varmepumpe/debug/fullstring', str(data))
@@ -237,7 +186,7 @@ async def receiver(client):
                             await client.publish('varmepumpe/roomtemp', str(roomtemp), qos=1)        
     except Exception as e:
         hpfuncs.logprint(e)
-        #restart_and_reconnect()
+
 
 async def mainloop(client):
     await client.connect()
@@ -252,7 +201,6 @@ client = MQTTClient(config)
 loop = asyncio.get_event_loop()
 loop.create_task(mainloop(client))
 loop.create_task(receiver(client))
-#
 loop.create_task(firstrun(client))
 loop.run_forever()
 
