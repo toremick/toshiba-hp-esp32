@@ -23,7 +23,8 @@ topic_sub_swingmode = b"varmepumpe/swingmode/set"
 topic_sub_mode =  b"varmepumpe/mode/set"
 topic_sub_doinit = b"varmepumpe/doinit"
 topic_sub_restart = b"varmepumpe/restart"
-topics = [topic_sub_setp, topic_sub_state, topic_sub_doinit, topic_sub_fanmode, topic_sub_mode, topic_sub_swingmode, topic_sub_restart]
+topic_sub_watchdog = b"varmepumpe/watchdog"
+topics = [topic_sub_setp, topic_sub_state, topic_sub_doinit, topic_sub_fanmode, topic_sub_mode, topic_sub_swingmode, topic_sub_restart, topic_sub_watchdog]
 
 def int_to_signed(intval):
     if intval > 127:
@@ -101,6 +102,14 @@ def sub_cb(topic, msg, retained):
             sleep(0.2)
         hpfuncs.logprint("initial read done")
         runwrite = False
+################################################
+# do watchdog
+    elif topic == topic_sub_watchdog:
+        myvals = hpfuncs.watchdog()
+        for i in myvals:
+            uart.write(bytearray(i))
+            sleep(0.2)
+        runwrite = False
 ################################################ 
     if runwrite == True and values != False:
         #print(values)
@@ -138,7 +147,10 @@ async def firstrun(client):
         await client.publish('varmepumpe/doinit', "firstrun")
         hpfuncs.logprint("init firstrun")
         firstrun = True
-
+    while True:
+        await.asyncio.sleep(60)
+        await client.publish('varmepumpe/watchdog', "get")
+        hpfuncs.logprint("running watchdog..")
 
 async def receiver(client):
     
