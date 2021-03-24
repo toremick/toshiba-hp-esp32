@@ -148,7 +148,7 @@ async def firstrun(client):
         hpfuncs.logprint("init firstrun")
         firstrun = True
     while True:
-        await.asyncio.sleep(60)
+        await asyncio.sleep(60)
         await client.publish('varmepumpe/watchdog', "get")
         hpfuncs.logprint("running watchdog..")
 
