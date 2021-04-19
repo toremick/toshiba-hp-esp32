@@ -54,14 +54,14 @@ def swingControl(msg):
 
 def modeControl(msg):
     message = msg.decode("utf-8")
-    if message is 'on' or 'off':
-        function_code = 128
-        function_value = statetoint[message]
-        getlist = (2,0,3,16,0,0,6,1,48,1,0,1,function_code,52)
-    else:
-        function_code = 176
-        function_value = modetoint[message]
-        getlist = (2,0,3,16,0,0,6,1,48,1,0,1,function_code,4)
+    #if message is 'on' or 'off':
+    #    function_code = 128
+    #    function_value = statetoint[message]
+    #    getlist = (2,0,3,16,0,0,6,1,48,1,0,1,function_code,52)
+    #else:
+    function_code = 176
+    function_value = modetoint[message]
+    getlist = (2,0,3,16,0,0,6,1,48,1,0,1,function_code,4)
         
     try:
         control_code = checksum(function_value,function_code)
