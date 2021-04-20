@@ -16,14 +16,14 @@ import machine
 #mqtt_server = '192.168.2.30'
 #client_id ='hpesp32-1'
 
-topic_sub_setp = b"varmepumpe/setpoint/set"
-topic_sub_state = b"varmepumpe/state/set"
-topic_sub_fanmode = b"varmepumpe/fanmode/set"
-topic_sub_swingmode = b"varmepumpe/swingmode/set"
-topic_sub_mode =  b"varmepumpe/mode/set"
-topic_sub_doinit = b"varmepumpe/doinit"
-topic_sub_restart = b"varmepumpe/restart"
-topic_sub_watchdog = b"varmepumpe/watchdog"
+topic_sub_setp = b"heatpump/setpoint/set"
+topic_sub_state = b"heatpump/state/set"
+topic_sub_fanmode = b"heatpump/fanmode/set"
+topic_sub_swingmode = b"heatpump/swingmode/set"
+topic_sub_mode =  b"heatpump/mode/set"
+topic_sub_doinit = b"heatpump/doinit"
+topic_sub_restart = b"heatpump/restart"
+topic_sub_watchdog = b"heatpump/watchdog"
 topics = [topic_sub_setp, topic_sub_state, topic_sub_doinit, topic_sub_fanmode, topic_sub_mode, topic_sub_swingmode, topic_sub_restart, topic_sub_watchdog]
 
 def int_to_signed(intval):
@@ -144,12 +144,12 @@ async def firstrun(client):
     firstrun = False
     await asyncio.sleep(10)
     if firstrun == False:
-        await client.publish('varmepumpe/doinit', "firstrun")
+        await client.publish('heatpump/doinit', "firstrun")
         hpfuncs.logprint("init firstrun")
         firstrun = True
     while True:
         await asyncio.sleep(60)
-        await client.publish('varmepumpe/watchdog', "get")
+        await client.publish('heatpump/watchdog', "get")
         hpfuncs.logprint("running watchdog..")
 
 async def receiver(client):
@@ -166,29 +166,29 @@ async def receiver(client):
                 chunks = chunkifyarray(readable)
                 for data in chunks:
                     hpfuncs.logprint(data)
-                    await client.publish('varmepumpe/debug/fullstring', str(data))
+                    await client.publish('heatpump/debug/fullstring', str(data))
                     if len(data) == 17:
                         if(str(data[14]) == "187"):
                             roomtemp = int_to_signed(int(data[15]))
-                            await client.publish('varmepumpe/roomtemp', str(roomtemp), qos=1)
+                            await client.publish('heatpump/roomtemp', str(roomtemp), qos=1)
                         if(str(data[14]) == "179"):
                             setpoint = int(data[15])
-                            await client.publish('varmepumpe/setpoint/state', str(setpoint), qos=1)
+                            await client.publish('heatpump/setpoint/state', str(setpoint), qos=1)
                         if(str(data[14]) == "128"):
                             state = hpfuncs.inttostate[int(data[15])]
-                            await client.publish('varmepumpe/state/state', str(state), qos=1)
+                            await client.publish('heatpump/state/state', str(state), qos=1)
                         if(str(data[14]) == "160"):
                             fanmode = hpfuncs.inttofanmode[int(data[15])]
-                            await client.publish('varmepumpe/fanmode/state', str(fanmode), qos=1)
+                            await client.publish('heatpump/fanmode/state', str(fanmode), qos=1)
                         if(str(data[14]) == "163"):
                             swingmode = hpfuncs.inttoswing[int(data[15])]
-                            await client.publish('varmepumpe/swingmode/state', str(swingmode), qos=1)
+                            await client.publish('heatpump/swingmode/state', str(swingmode), qos=1)
                         if(str(data[14]) == "176"):
                             mode = hpfuncs.inttomode[int(data[15])]
-                            await client.publish('varmepumpe/mode/state', str(mode), qos=1) 
+                            await client.publish('heatpump/mode/state', str(mode), qos=1) 
                         if(str(data[14]) == "190"):
                             outdoortemp = int_to_signed(int(data[15]))
-                            await client.publish('varmepumpe/outdoortemp', str(outdoortemp), qos=1)
+                            await client.publish('heatpump/outdoortemp', str(outdoortemp), qos=1)
                     elif len(data) == 15:
                         if(str(data[12]) == "187"):
                             roomtemp = int_to_signed(int(data[13]))
