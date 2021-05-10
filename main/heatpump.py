@@ -79,9 +79,10 @@ def sub_cb(topic, msg, retained):
 # mode
     elif topic == topic_sub_mode:
         try:
-            #await client.publish(config['maintopic'] + '/pstate', str(power_state), qos=1)
+            
             if power_state != 'ON':
-                values = hpfuncs.stateControl('ON')
+                onmsg = 'ON'
+                values = hpfuncs.stateControl(onmsg.encode("utf-8"))
                 values = values + hpfuncs.modeControl(msg)
             else:
                 values = hpfuncs.modeControl(msg)
