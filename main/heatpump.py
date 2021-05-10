@@ -80,8 +80,8 @@ def sub_cb(topic, msg, retained):
     elif topic == topic_sub_mode:
         try:
             if power_state != 'ON':
-                 values = hpfuncs.stateControl(msg)
-                 values = values + hpfuncs.modeControl(msg)
+                values = hpfuncs.stateControl(msg)
+                values = values + hpfuncs.modeControl(msg)
             else:
                 values = hpfuncs.modeControl(msg)
             if values == False:
