@@ -1,2 +1,2 @@
-config.py
-main.py
+config.py export-ignore
+main.py export-ignore
