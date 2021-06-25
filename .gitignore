@@ -1,2 +1,3 @@
+.gitignore export-ignore
 config.py export-ignore
 main.py export-ignore
